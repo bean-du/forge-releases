@@ -1,0 +1,33 @@
+Aurakl Forge End User License Agreement
+
+Copyright (c) 2026 Aurakl. All rights reserved.
+
+This repository hosts only compiled release artifacts of Aurakl Forge. The
+source code is proprietary and not distributed here.
+
+By downloading, installing, or using the binaries, you agree to the End User
+License Agreement available at https://crevo.aurakl.ai/eula.
+
+PERMITTED USE
+- You may install and run the software on devices you own or control for the
+  purposes intended by the application.
+- You may verify, redistribute, and reference SHA256 checksums and minisign
+  signatures for integrity verification.
+
+PROHIBITED USE
+- You may NOT reverse engineer, decompile, or disassemble the binaries except
+  to the extent expressly permitted by applicable law.
+- You may NOT redistribute the binaries themselves outside the official update
+  channels (this repository, https://crevo.aurakl.ai/download, and the in-app
+  updater) without prior written permission from Aurakl.
+- You may NOT remove or alter any proprietary notices.
+
+NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+AURAKL BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM
+THE USE OF THE SOFTWARE.
+
+For commercial licensing, enterprise terms, or source-code access inquiries,
+contact: licensing@aurakl.ai

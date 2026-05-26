@@ -1,0 +1,104 @@
+name: Republish Forge Release
+
+# Triggered by aurakl-core (private) release.yml via repository_dispatch.
+# Downloads built artifacts from the source build, generates latest.json
+# (Tauri updater compatible), and creates a GitHub Release with all bundles.
+
+on:
+  repository_dispatch:
+    types: [forge-release]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Forge version tag (e.g. v0.6.0) — sans 'forge-' prefix"
+        required: true
+        type: string
+      source_run_id:
+        description: "aurakl-core run ID that produced the artifacts"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  republish:
+    name: Republish ${{ github.event.client_payload.version || inputs.version }}
+    runs-on: ubuntu-latest
+
+    env:
+      VERSION: ${{ github.event.client_payload.version || inputs.version }}
+      SOURCE_RUN_ID: ${{ github.event.client_payload.source_run_id || inputs.source_run_id }}
+      SOURCE_REPO: ${{ github.event.client_payload.source_repo || 'bean-du/aurakl-core' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version: $VERSION (expected semver like v0.6.0 or v0.6.0-rc1)"
+            exit 1
+          fi
+          echo "✓ Version $VERSION is valid"
+
+      - name: Download bundles from aurakl-core
+        env:
+          GH_TOKEN: ${{ secrets.AURAKL_CORE_PAT }}
+        run: |
+          mkdir -p bundles
+          # Each platform builds one named artifact (forge-<target>) — see aurakl-core release.yml
+          for target in aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu x86_64-pc-windows-msvc; do
+            echo "::group::Download forge-$target from $SOURCE_REPO run $SOURCE_RUN_ID"
+            gh run download "$SOURCE_RUN_ID" \
+              --repo "$SOURCE_REPO" \
+              --name "forge-$target" \
+              --dir "bundles/$target"
+            echo "::endgroup::"
+          done
+          find bundles -type f | sort
+
+      - name: Generate SHA256 sums
+        run: |
+          cd bundles
+          find . -type f \( -name '*.dmg' -o -name '*.AppImage' -o -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.zip' \) \
+            -exec sh -c 'shasum -a 256 "$1" > "$1.sha256"' _ {} \;
+          echo "Generated checksums:"
+          find . -name '*.sha256' -exec cat {} \;
+
+      - name: Generate latest.json (Tauri updater compatible)
+        run: |
+          python3 scripts/gen-latest-json.py \
+            --version "$VERSION" \
+            --bundles-dir bundles \
+            --output latest.json
+          echo "--- latest.json ---"
+          cat latest.json
+
+      - name: Flatten bundles for release upload
+        run: |
+          mkdir -p release-assets
+          find bundles -type f \( -name '*.dmg' -o -name '*.AppImage' -o -name '*.exe' -o -name '*.msi' \
+                                  -o -name '*.deb' -o -name '*.sig' -o -name '*.sha256' \) \
+            -exec cp {} release-assets/ \;
+          cp latest.json release-assets/
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Aurakl Forge ${{ env.VERSION }}
+          body: |
+            **Aurakl Forge ${{ env.VERSION }}** — see [CHANGELOG.md](./CHANGELOG.md) for details.
+
+            Downloads are platform-detected at https://crevo.aurakl.ai/download.
+
+            Verify with minisign (`minisign.pub` committed in this repo) or SHA256 sidecar files.
+          files: release-assets/**
+          draft: false
+          prerelease: ${{ contains(env.VERSION, '-') }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
